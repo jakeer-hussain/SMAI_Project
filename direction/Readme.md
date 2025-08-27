@@ -1,0 +1,7 @@
+This task involves training a convolutional neural network (CNN) model for predicting angles from images. The model architecture is ResNet-18, a pre-trained CNN from the torchvision library, which is fine-tuned by replacing its final fully connected layer with a single-node output layer for angle regression. The model learns to predict angles between 0 and 359 degrees using a custom angular loss function that handles the circular nature of angle values by minimizing the shortest distance on a 360° circle.
+
+For preprocessing, images are resized to 256x256 pixels and normalized using ImageNet statistics. Data augmentation is applied to training images using small random translations to enhance generalization. Importantly, outlier removal(angles greater than 359 and less than 0) was performed in preprocessing (though not shown directly in code), which is crucial for reducing noise and improving model robustness.
+
+An AngularLoss class is implemented to correctly compute loss for circular angle values, and a corresponding mean angular error is used as a validation metric. The training uses Adam optimizer with a learning rate scheduler (ReduceLROnPlateau) to adaptively reduce the learning rate when validation error plateaus. The model is evaluated and saved based on its performance, and predictions are exported for external analysis. After testing on the validation set, the test set images are taken and its predictions are added continuous after the validation predictions
+
+
