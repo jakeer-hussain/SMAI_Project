@@ -1,64 +1,151 @@
-## Model Type and Training Strategy
+## 🧭 Overview
 
-**Model Used**: 
+This module trains a **ConvNeXt-Tiny** model to predict **latitude** and **longitude** from campus images.  
+Since the outputs are continuous values, the model performs **regression** using **Mean Squared Error (MSE)** loss.  
 
-ConvNeXt-Tiny, a Convolutional Neural Network (CNN) architecture.
+The workflow includes:
+- Data preprocessing and augmentation  
+- Model training and validation  
+- Exclusion of specific problematic indices  
+- Export of predictions in CSV format for evaluation/submission  
 
-**Pre-trained**: 
+---
 
-Yes, the model is initialized with pre-trained ImageNet weights (ConvNeXt_Tiny_Weights.DEFAULT).
+## ⚙️ Features
 
-**Fine-Tuning**:
+- **Quantile-based outlier removal** for target coordinates  
+- **Automatic computation** of dataset mean and standard deviation for normalization  
+- **Comprehensive data augmentation**: random crop, horizontal flip, rotation, and color jitter  
+- **Transfer learning** using pretrained **ConvNeXt-Tiny (ImageNet weights)**  
+- **Regression setup** with MSE loss, Adam optimizer, and ReduceLROnPlateau learning rate scheduler  
 
- The model’s final layer (model.classifier[2]) is replaced with a new nn.Linear layer to output two values: latitude and longitude. The entire model is fine-tuned on the location prediction task.
+---
 
-## Preprocessing Techniques
+## 📁 Files
 
-**Outlier Removal**:
+| File Name | Description |
+|------------|-------------|
+| `latlong_train.py` | Main training and prediction script |
+| `latlong.pth` | Saved model weights (for testing or inference) |
+| `Latlong_predictions.csv` | Generated CSV containing latitude–longitude predictions |
 
-Latitude and longitude values are filtered using the 1st and 99th quantiles to remove extreme geographic outliers.
-(Implemented via the remove_outliers_quantile() function.)
+---
 
-**Data Normalization**:
+## 🚀 Usage
 
-Mean and standard deviation are computed from the dataset itself to normalize images using transforms.Normalize(mean, std).
+### 1. Install Dependencies
+```bash
+pip install torch torchvision pandas numpy pillow
+````
 
-**Image Augmentation (for Training)**:
+### 2. Run the Script
 
-#### Resize to 256×256
+```bash
+python latlong_train.py
+```
 
-#### RandomResizedCrop (to 224×224)
+---
 
-#### Horizontal Flip
+## 🧩 Data
 
-#### Random Rotation (±30°)
+The input CSV must contain the following columns:
 
-#### ColorJitter (Brightness, Contrast, Saturation, Hue)
+```
+filename, latitude, longitude
+```
 
-#### Convert to Tensor and Normalize
+The **`LocationDataset`** class:
 
-**Validation Transformations**:
+* Loads images and returns `(image_tensor, tensor([lat, lon]))`
+* Supports optional **quantile-based outlier filtering** via `filter_outliers=True`, which drops entries outside the 1st–99th percentile range
 
-Only resizing, tensor conversion, and normalization are used (no augmentation), ensuring consistency during evaluation.
+---
 
-## Innovative / Noteworthy Ideas
+## 🧮 Data Transforms
 
-**Location Regression from Images**:
+### Training
 
-The task is predicting geographic coordinates (latitude & longitude) from image content — a non-traditional regression task using CNNs.
+* Resize
+* RandomResizedCrop(224)
+* RandomHorizontalFlip
+* RandomRotation(±30°)
+* ColorJitter
+* ToTensor
+* Normalize(mean, std)
 
-**Custom Exclusion Handling**: 
+### Validation
 
-Specific validation indices (e.g., [95, 145–161]) are excluded during validation and prediction by masking predictions to [0, 0] for those samples.
+* Resize
+* ToTensor
+* Normalize(mean, std)
 
-**Rounded Predictions for Output CSV**:
+The mean and standard deviation are computed dynamically from the dataset using `compute_mean_std`.
 
- Predicted latitude/longitude values are rounded to integers before saving, which may align with coarse geolocation needs.
+---
 
-**Robust Training Setup**:
+## 🧠 Model
 
-Reproducibility ensured via consistent seeding across random, numpy, and torch.
+* **Base Model:** `convnext_tiny(weights=ConvNeXt_Tiny_Weights.DEFAULT)`
+* **Modified Head:** Final classifier replaced with `nn.Linear(in_features, 2)` for predicting `(latitude, longitude)`
 
-Scheduler (ReduceLROnPlateau) adjusts learning rate based on validation loss plateau.
+---
 
-Model weights are saved only when validation loss improves.
+## 🔧 Training Setup
+
+| Component         | Details                                     |
+| ----------------- | ------------------------------------------- |
+| **Loss Function** | `nn.MSELoss()`                              |
+| **Optimizer**     | `Adam(lr=0.005, weight_decay=1e-4)`         |
+| **Scheduler**     | `ReduceLROnPlateau(patience=3, factor=0.1)` |
+| **Batch Size**    | 20                                          |
+
+---
+
+## 🧪 Validation Details
+
+During validation and prediction, specific indices are **excluded** (set to zero values):
+
+```
+{95, 145, 146, 158, 159, 160, 161}
+```
+
+These entries are considered invalid or problematic.
+
+---
+
+## 📊 Output Format
+
+### Generated File: `Latlong_predictions.csv`
+
+| Column      | Description         |
+| ----------- | ------------------- |
+| `id`        | Image index         |
+| `Latitude`  | Predicted latitude  |
+| `Longitude` | Predicted longitude |
+
+* Excluded indices are written as `0, 0`
+* The script ensures the CSV file is **padded up to 738 rows** if necessary
+
+Example:
+
+```csv
+id,Latitude,Longitude
+0,219632, 143522
+1,38336, 258
+...
+```
+
+---
+
+## 🏁 Outputs
+
+After running the script:
+
+* ✅ `latlong.pth` — best model weights
+* ✅ `Latlong_predictions.csv` — final predictions for submission
+
+---
+
+## 🧾 Summary
+
+This ConvNeXt-based latitude–longitude prediction pipeline combines **robust preprocessing**, **transfer learning**, and **careful validation handling** to deliver reliable geolocation estimates from images.
